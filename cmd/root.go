@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/go-ini/ini"
 	"github.com/go-yaml/yaml"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/logrusorgru/aurora"
@@ -25,12 +26,42 @@ const (
 	langJson
 	langYaml
 	langToml
+	langIni
 )
 
 var RootCmd = &cobra.Command{
 	Use:   "dsdiff [file 1] [file 2]",
-	Short: "Semantic diffs of data serialization languages",
-	Args:  cobra.ExactArgs(2),
+	Short: "Semantic diffs of data serialization languages.",
+	Long: `Semantic diffs of data serialization languages.
+
+dsdiff will try to figure out what type each file is based on the file name:
+  - yaml/yml: YAML
+  - toml: TOML
+  - ini: Ini
+  - json: JSON
+
+If one of these extensions is matched, dsdiff requires the contents of the file
+to be of that type.
+
+
+If the file extension is unknown, it will try a series of parsers until one
+works:
+  1. JSON
+  2. TOML
+  3. YAML
+
+Ini is not in this list, because it is very similar to TOML and ordering them is
+rather subjective.
+
+
+You can also specify the file type. These will override the file name, and supported
+values are:
+  - yaml
+  - json
+  - toml
+  - ini
+`,
+	Args: cobra.ExactArgs(2),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		var err error
 		firstFileLang, err = parseLanguageArg(firstFileLangArg)
@@ -63,8 +94,7 @@ var (
 )
 
 func init() {
-	const fileTypeDesc = "Valid values: [yaml|json|toml]. If unspecified, dsdiff will try to " +
-		"automatically determine what the file type is (specifying could be more efficient)."
+	const fileTypeDesc = "Valid values: [yaml|json|toml|ini]."
 
 	RootCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "First file type. "+fileTypeDesc)
 	RootCmd.PersistentFlags().StringVarP(&secondFileLangArg, "file2type", "2", "", "Second file type. "+fileTypeDesc)
@@ -79,6 +109,8 @@ func parseLanguageArg(s string) (language, error) {
 		return langJson, nil
 	case "toml":
 		return langToml, nil
+	case "ini":
+		return langIni, nil
 	case "":
 		return langAny, nil
 	default:
@@ -158,6 +190,14 @@ func parse(lang language, path string) (interface{}, error) {
 		logrus.Debug("Calling TOML parser")
 		return value, toml.Unmarshal(contents, &value)
 
+	case lang == langIni:
+		logrus.Debug("Calling Ini parser")
+		file, err := ini.Load(contents)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to initialize ini file model")
+		}
+
+		return value, ini.ReflectFrom(file, &value)
 	default:
 		logrus.Debug("Unknown file extension and language wasn't specified")
 
@@ -175,6 +215,8 @@ func parse(lang language, path string) (interface{}, error) {
 			return value, nil
 		}
 
+		// Yaml parser is the most permissive and will frequently misinterpret other files.
+		// Call it last
 		logrus.Debug("Attempting to use YAML parser")
 		err = yaml.Unmarshal(contents, &value)
 		if err == nil {

@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/go-ini/ini v1.42.0
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348
