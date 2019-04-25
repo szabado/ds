@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/go-yaml/yaml"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/logrusorgru/aurora"
@@ -23,6 +24,7 @@ const (
 	langAny language = iota
 	langJson
 	langYaml
+	langToml
 )
 
 var RootCmd = &cobra.Command{
@@ -61,7 +63,7 @@ var (
 )
 
 func init() {
-	const fileTypeDesc = "Valid values: [yaml|json]. If unspecified, dsdiff will try to " +
+	const fileTypeDesc = "Valid values: [yaml|json|toml]. If unspecified, dsdiff will try to " +
 		"automatically determine what the file type is (specifying could be more efficient)."
 
 	RootCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "First file type. "+fileTypeDesc)
@@ -75,6 +77,8 @@ func parseLanguageArg(s string) (language, error) {
 		return langYaml, nil
 	case "json":
 		return langJson, nil
+	case "toml":
+		return langToml, nil
 	case "":
 		return langAny, nil
 	default:
@@ -147,6 +151,13 @@ func parse(lang language, path string) (interface{}, error) {
 		logrus.Debug("Calling YAML parser")
 		return value, yaml.Unmarshal(contents, &value)
 
+	case lang == langAny && extensionLang == langToml:
+		logrus.Debug("File has TOML extension, assuming the contents are TOML")
+		fallthrough
+	case lang == langToml:
+		logrus.Debug("Calling TOML parser")
+		return value, toml.Unmarshal(contents, &value)
+
 	default:
 		logrus.Debug("Unknown file extension and language wasn't specified")
 
@@ -154,6 +165,13 @@ func parse(lang language, path string) (interface{}, error) {
 		err := json.Unmarshal(contents, &value)
 		if err == nil {
 			logrus.Debug("JSON parser succeeded")
+			return value, nil
+		}
+
+		logrus.Debug("Attempting to use TOML parser")
+		err = toml.Unmarshal(contents, &value)
+		if err == nil {
+			logrus.Debug("TOML parser succeeded")
 			return value, nil
 		}
 
@@ -174,6 +192,8 @@ func getFileExtLang(file string) language {
 		return langYaml
 	case ".json":
 		return langJson
+	case ".toml":
+		return langToml
 	default:
 		return langAny
 	}
