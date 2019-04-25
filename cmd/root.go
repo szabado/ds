@@ -40,6 +40,12 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			logrus.WithError(err).Fatal("Invalid language specified")
 		}
+
+		if verbose {
+			logrus.SetLevel(logrus.DebugLevel)
+		} else {
+			logrus.SetLevel(logrus.FatalLevel)
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := runRoot(args[0], args[1], firstFileLang, secondFileLang); err != nil {
@@ -87,8 +93,15 @@ func runRoot(file1, file2 string, lang1, lang2 language) error {
 		return errors.Wrapf(err, "failed to parse %v", file2)
 	}
 
+	logrus.Debug("Calculating diff")
 	output := pretty.Compare(contents1, contents2)
-	prettyPrint(output)
+	if output == "" {
+		logrus.Debug("Files are identical")
+	} else {
+		logrus.Debug("Pretty printing output")
+		prettyPrint(output)
+	}
+
 	return nil
 }
 
@@ -108,35 +121,60 @@ func prettyPrint(s string) {
 }
 
 func parse(lang language, path string) (interface{}, error) {
+	logrus := logrus.WithField("path", path)
+
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read file")
 	}
+	logrus.Debugf("Read %v bytes successfully", len(contents))
+
+	extensionLang := getFileExtLang(path)
 
 	var value interface{}
 	switch {
-	case lang == langJson || lang == langAny && hasFileExt(langJson, path):
+	case lang == langAny && extensionLang == langJson:
+		logrus.Debugf("File has JSON extension, assuming the contents are JSON")
+		fallthrough
+	case lang == langJson:
+		logrus.Debug("Calling JSON parser")
 		return value, json.Unmarshal(contents, &value)
-	case lang == langYaml || lang == langAny && hasFileExt(langYaml, path):
+
+	case lang == langAny && extensionLang == langYaml:
+		logrus.Debug("File has YAML extension, assuming the contents are YAML")
+		fallthrough
+	case lang == langYaml:
+		logrus.Debug("Calling YAML parser")
 		return value, yaml.Unmarshal(contents, &value)
-	default: // lang == langAny && no known file extension
-		if err := json.Unmarshal(contents, &value); err == nil {
+
+	default:
+		logrus.Debug("Unknown file extension and language wasn't specified")
+
+		logrus.Debug("Attempting to use JSON parser")
+		err := json.Unmarshal(contents, &value)
+		if err == nil {
+			logrus.Debug("JSON parser succeeded")
 			return value, nil
-		} else if err = yaml.Unmarshal(contents, &value); err == nil {
-			return value, nil
-		} else {
-			return nil, errors.Errorf("unable to parse file")
 		}
+
+		logrus.Debug("Attempting to use YAML parser")
+		err = yaml.Unmarshal(contents, &value)
+		if err == nil {
+			logrus.Debug("YAML parser succeeded")
+			return value, nil
+		}
+
+		return nil, errors.Errorf("unable to parse file")
 	}
 }
 
-func hasFileExt(lang language, file string) bool {
+func getFileExtLang(file string) language {
 	switch strings.ToLower(filepath.Ext(file)) {
-	case "yaml", "yml":
-		return lang == langYaml
-	case "json":
-		return lang == langJson
+	case ".yaml", ".yml":
+		return langYaml
+	case ".json":
+		return langJson
 	default:
-		return false
+		return langAny
 	}
 }
