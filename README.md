@@ -5,18 +5,19 @@ Semantic Diffs of Data Serialization languages.
 ## Future Goals
 
 Diffs between:
-- toml
 - xml?
-- ini?
 - protobuf??? Probably not, but maybe
+- ini. More complicated than other languages.
 
 Other things:
 - Pretty printing in the relevant language
 
 ## Current Capabilities
 
+Diffs between:
 - yaml
 - json
+- toml
 
 Printing the output of a syntax-agnostic diff
 

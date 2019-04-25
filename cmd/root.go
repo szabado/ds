@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/go-ini/ini"
 	"github.com/go-yaml/yaml"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/logrusorgru/aurora"
@@ -26,7 +25,6 @@ const (
 	langJson
 	langYaml
 	langToml
-	langIni
 )
 
 var RootCmd = &cobra.Command{
@@ -37,7 +35,6 @@ var RootCmd = &cobra.Command{
 dsdiff will try to figure out what type each file is based on the file name:
   - yaml/yml: YAML
   - toml: TOML
-  - ini: Ini
   - json: JSON
 
 If one of these extensions is matched, dsdiff requires the contents of the file
@@ -50,16 +47,12 @@ works:
   2. TOML
   3. YAML
 
-Ini is not in this list, because it is very similar to TOML and ordering them is
-rather subjective.
-
 
 You can also specify the file type. These will override the file name, and supported
 values are:
-  - yaml
+  - yaml/yml
   - json
   - toml
-  - ini
 `,
 	Args: cobra.ExactArgs(2),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -94,7 +87,7 @@ var (
 )
 
 func init() {
-	const fileTypeDesc = "Valid values: [yaml|json|toml|ini]."
+	const fileTypeDesc = "Valid values: [yaml|json|toml]."
 
 	RootCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "First file type. "+fileTypeDesc)
 	RootCmd.PersistentFlags().StringVarP(&secondFileLangArg, "file2type", "2", "", "Second file type. "+fileTypeDesc)
@@ -109,8 +102,6 @@ func parseLanguageArg(s string) (language, error) {
 		return langJson, nil
 	case "toml":
 		return langToml, nil
-	case "ini":
-		return langIni, nil
 	case "":
 		return langAny, nil
 	default:
@@ -190,14 +181,6 @@ func parse(lang language, path string) (interface{}, error) {
 		logrus.Debug("Calling TOML parser")
 		return value, toml.Unmarshal(contents, &value)
 
-	case lang == langIni:
-		logrus.Debug("Calling Ini parser")
-		file, err := ini.Load(contents)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to initialize ini file model")
-		}
-
-		return value, ini.ReflectFrom(file, &value)
 	default:
 		logrus.Debug("Unknown file extension and language wasn't specified")
 
@@ -229,7 +212,7 @@ func parse(lang language, path string) (interface{}, error) {
 }
 
 func getFileExtLang(file string) language {
-	switch strings.ToLower(filepath.Ext(file)) {
+	switch ext := strings.ToLower(filepath.Ext(file)); ext {
 	case ".yaml", ".yml":
 		return langYaml
 	case ".json":
@@ -237,6 +220,7 @@ func getFileExtLang(file string) language {
 	case ".toml":
 		return langToml
 	default:
+		logrus.WithField("extension", ext).Debug("Unknown file extension")
 		return langAny
 	}
 }
