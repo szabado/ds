@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/szabado/dsdiff/cmd"
@@ -9,7 +9,8 @@ import (
 
 func main() {
 	if err := cmd.RootCmd.Execute(); err != nil {
-		fmt.Printf("Fatal error: %s", err)
+		logrus.WithError(err).Trace("Fatal error encountered")
+
 		os.Exit(1)
 	}
 }
