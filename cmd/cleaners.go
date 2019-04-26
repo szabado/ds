@@ -11,8 +11,8 @@ func stringMapKeyCleaner(v interface{}) interface{} {
 	case map[interface{}]interface{}:
 		logrus.Debug("Checking if interface keyed map can be converted")
 		// Check for any non-string keys
-		for k, v := range vv {
-			if _, ok := k.(string); !ok {
+		for key := range vv {
+			if _, ok := key.(string); !ok {
 				logrus.Debug("Interface keyed map cannot be converted")
 				return v
 			}

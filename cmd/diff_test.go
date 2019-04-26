@@ -18,4 +18,8 @@ func TestDiff(t *testing.T) {
 
 	require.NoError(runDiff("fixtures/test2-a.json", "fixtures/test2-a.toml", JSON, TOML))
 	require.NoError(runDiff("fixtures/test2-a.toml", "fixtures/test2-a.yaml", TOML, YAML))
+
+	require.NoError(runDiff("fixtures/test3-b.toml", "fixtures/test3-b.json", Any, JSON))
+	require.Error(errOsExit1, runDiff("fixtures/test3-a.yaml", "fixtures/test3-b.json", Any, JSON))
+	require.Error(errOsExit1, runDiff("fixtures/test3-a.yaml", "fixtures/test3-b.toml", Any, Any))
 }

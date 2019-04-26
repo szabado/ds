@@ -28,4 +28,8 @@ func TestParse(t *testing.T) {
 	require.NoError(runParse("fixtures/test2-a.yaml", YAML, JSON))
 	require.NoError(runParse("fixtures/test2-a.yaml", YAML, YAML))
 	require.NoError(runParse("fixtures/test2-a.yaml", YAML, TOML))
+
+	require.Error(runParse("fixtures/test3-a.yaml", Any, TOML))
+	require.Error(runParse("fixtures/test3-a.yaml", Any, JSON))
+	require.NoError(runParse("fixtures/test3-a.yaml", Any, YAML))
 }
