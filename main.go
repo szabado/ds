@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
 
-	"github.com/szabado/dsdiff/cmd"
+	"github.com/sirupsen/logrus"
+
+	"github.com/szabado/ds/cmd"
 )
 
 func main() {
