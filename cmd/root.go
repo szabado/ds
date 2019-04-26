@@ -26,28 +26,36 @@ const (
 )
 
 type parser struct {
-	lang      Language
-	unmarshal func([]byte, interface{}) error
-	marshal   func(v interface{}) ([]byte, error)
+	lang       Language
+	unmarshal  func([]byte, interface{}) error
+	marshal    func(v interface{}) ([]byte, error)
+	cleanInput func(interface{}) interface{}
 }
 
-var parsers = []parser{
+func jsonMarshalPretty(v interface{}) ([]byte, error) {
+	return json.MarshalIndent(v, "", "  ")
+}
+
+var parsers = []*parser{
 	{
-		lang:      JSON,
-		unmarshal: json.Unmarshal,
-		marshal:   json.Marshal,
+		lang:       JSON,
+		unmarshal:  json.Unmarshal,
+		marshal:    jsonMarshalPretty,
+		cleanInput: stringMapKeyCleaner,
 	},
 	{
-		lang:      TOML,
-		unmarshal: toml.Unmarshal,
-		marshal:   toml.Marshal,
+		lang:       TOML,
+		unmarshal:  toml.Unmarshal,
+		marshal:    toml.Marshal,
+		cleanInput: stringMapKeyCleaner,
 	},
 	{
 		// Yaml parser is the most permissive and will frequently misinterpret other files.
 		// Call it last
-		lang:      YAML,
-		unmarshal: yaml.Unmarshal,
-		marshal:   yaml.Marshal,
+		lang:       YAML,
+		unmarshal:  yaml.Unmarshal,
+		marshal:    yaml.Marshal,
+		cleanInput: noopCleaner,
 	},
 }
 
