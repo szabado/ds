@@ -2,19 +2,22 @@ package cmd
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/szabado/ds/toml"
 )
 
 //go:generate stringer -type=Language
 type Language int
 
+const supportedLangsArg = "Valid types: [yaml|json|toml]"
 const (
 	Any Language = iota
 	JSON
@@ -25,22 +28,26 @@ const (
 type parser struct {
 	lang      Language
 	unmarshal func([]byte, interface{}) error
+	marshal   func(v interface{}) ([]byte, error)
 }
 
 var parsers = []parser{
 	{
 		lang:      JSON,
 		unmarshal: json.Unmarshal,
+		marshal:   json.Marshal,
 	},
 	{
 		lang:      TOML,
 		unmarshal: toml.Unmarshal,
+		marshal:   toml.Marshal,
 	},
 	{
 		// Yaml parser is the most permissive and will frequently misinterpret other files.
 		// Call it last
 		lang:      YAML,
 		unmarshal: yaml.Unmarshal,
+		marshal:   yaml.Marshal,
 	},
 }
 
@@ -49,18 +56,29 @@ var errOsExit1 = errors.New("ds should os.Exit(1)")
 var RootCmd = &cobra.Command{
 	Use:   "ds",
 	Short: "A swiss army tool for markup languages like json, yaml, and toml.",
+	Long: `A swiss army tool for markup languages like json, yaml, and toml.
+
+ds will try to figure out automagically what the type of any file passed in
+is. It uses a couple methods to do this. First, the file extension:
+  - .yaml/.yml: YAML
+  - .toml: TOML
+  - .json: JSON
+
+If the file extension is unknown, it will try a series of parsers until one
+works (in this order):
+  1. JSON
+  2. TOML
+  3. YAML
+
+
+If it fails, or you want to be extra sure it's using the right parser, you can 
+also specify the file type. These will override the file name, and supported
+values are:
+  - yaml/yml
+  - json
+  - toml
+`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		var err error
-		firstFileLang, err = parseLanguageArg(firstFileLangArg)
-		if err != nil {
-			logrus.WithError(err).Fatal("Invalid Language specified")
-		}
-
-		secondFileLang, err = parseLanguageArg(secondFileLangArg)
-		if err != nil {
-			logrus.WithError(err).Fatal("Invalid Language specified")
-		}
-
 		if verbose {
 			logrus.SetLevel(logrus.DebugLevel)
 		} else {
@@ -70,9 +88,7 @@ var RootCmd = &cobra.Command{
 }
 
 var (
-	firstFileLangArg, secondFileLangArg string
-	firstFileLang, secondFileLang       Language
-	verbose, quiet                      bool
+	verbose, quiet bool
 )
 
 func init() {
@@ -104,4 +120,20 @@ func getFileExtLang(file string) Language {
 	}
 
 	return lang
+}
+
+// handleErr either returns successfully if there's no error, or calls os.Exit(). This
+// should only be used in the Run section of cobra.Command.
+func handleErr(err error) {
+	if err == nil {
+		return
+	}
+
+	if err == errOsExit1 {
+		os.Exit(1)
+	} else if quiet {
+		os.Exit(1)
+	} else {
+		logrus.WithError(err).Fatal("Fatal error")
+	}
 }

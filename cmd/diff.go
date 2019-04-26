@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -14,59 +13,46 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	const fileTypeDesc = "Valid values: [yaml|json|toml]"
+var (
+	firstFileLangArg, secondFileLangArg string
+	firstFileLang, secondFileLang       Language
+)
 
+func init() {
 	RootCmd.AddCommand(diffCmd)
 
-	diffCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "first file type  "+fileTypeDesc)
-	diffCmd.PersistentFlags().StringVarP(&secondFileLangArg, "file2type", "2", "", "second file type "+fileTypeDesc)
+	diffCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "first file type.  "+supportedLangsArg)
+	diffCmd.PersistentFlags().StringVarP(&secondFileLangArg, "file2type", "2", "", "second file type. "+supportedLangsArg)
 }
 
 var diffCmd = &cobra.Command{
 	Use:   "diff [file 1] [file 2]",
 	Short: "Take semantic diffs of different markup files.",
-	Long: `Take semantic diffs of different markup files.
-
-ds diff will try to figure out what type each file is based on the file extension:
-  - .yaml/.yml: YAML
-  - .toml: TOML
-  - .json: JSON
-
-If one of these extensions is matched, ds diff requires the contents of the file
-to be of that type.
-
-
-If the file extension is unknown, it will try a series of parsers until one
-works:
-  1. JSON
-  2. TOML
-  3. YAML
-
-
-You can also specify the file type. These will override the file name, and supported
-values are:
-  - yaml/yml
-  - json
-  - toml
-`,
-	Args: cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := runDiff(args[0], args[1], firstFileLang, secondFileLang); err == errOsExit1 {
-			os.Exit(1)
-		} else if err != nil {
-			logrus.WithError(err).Fatal("Fatal error")
+	Args:  cobra.ExactArgs(2),
+	PreRun: func(cmd *cobra.Command, args []string) {
+		var err error
+		firstFileLang, err = parseLanguageArg(firstFileLangArg)
+		if err != nil {
+			logrus.WithError(err).Fatal("Invalid language specified")
 		}
+
+		secondFileLang, err = parseLanguageArg(secondFileLangArg)
+		if err != nil {
+			logrus.WithError(err).Fatal("Invalid language specified")
+		}
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		handleErr(runDiff(args[0], args[1], firstFileLang, secondFileLang))
 	},
 }
 
 func runDiff(file1, file2 string, lang1, lang2 Language) error {
-	contents1, err := parse(lang1, file1)
+	contents1, _, err := parse(lang1, file1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %v", file1)
 	}
 
-	contents2, err := parse(lang2, file2)
+	contents2, _, err := parse(lang2, file2)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %v", file2)
 	}
@@ -103,12 +89,12 @@ func prettyPrint(s string) {
 	}
 }
 
-func parse(lang Language, path string) (interface{}, error) {
+func parse(lang Language, path string) (interface{}, Language, error) {
 	logrus := logrus.WithField("path", path)
 
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read file")
+		return nil, Any, errors.Wrapf(err, "failed to read file")
 	}
 	logrus.Debugf("Read %v bytes successfully", len(contents))
 
@@ -117,13 +103,13 @@ func parse(lang Language, path string) (interface{}, error) {
 	var value interface{}
 	for _, parser := range parsers {
 		if lang == Any && extensionLang == parser.lang {
-			logrus.Debugf("File has %[1]s extension, assuming the contents are %[1]s", lang)
+			logrus.Debugf("File has %[1]s extension, assuming the contents are %[1]s", extensionLang)
 		} else if lang != parser.lang {
 			// This is not the right parser
 			continue
 		}
 
-		return value, parser.unmarshal(contents, &value)
+		return value, parser.lang, parser.unmarshal(contents, &value)
 	}
 
 	logrus.Debug("Unknown file extension and language wasn't specified")
@@ -133,9 +119,9 @@ func parse(lang Language, path string) (interface{}, error) {
 		err = parser.unmarshal(contents, &value)
 		if err == nil {
 			logrus.Debugf("%s parser succeeded", parser.lang)
-			return value, nil
+			return value, parser.lang, nil
 		}
 	}
 
-	return nil, errors.Errorf("unable to parse file")
+	return nil, Any, errors.Errorf("unable to parse file")
 }
