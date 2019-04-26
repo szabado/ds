@@ -97,15 +97,11 @@ func parseLanguageArg(s string) (Language, error) {
 }
 
 func getFileExtLang(file string) Language {
-	switch ext := strings.ToLower(filepath.Ext(file)); ext {
-	case ".yaml", ".yml":
-		return YAML
-	case ".json":
-		return JSON
-	case ".toml":
-		return TOML
-	default:
-		logrus.WithField("extension", ext).Debug("Unknown file extension")
-		return Any
+	ext := filepath.Ext(file)
+	lang, _ := parseLanguageArg(strings.TrimPrefix(strings.ToLower(ext), "."))
+	if lang == Any {
+		logrus.WithField("ext", ext).Debug("Unknown file extension")
 	}
+
+	return lang
 }

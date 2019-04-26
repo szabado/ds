@@ -12,6 +12,10 @@ func TestDiff(t *testing.T) {
 	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a.yaml", Any, Any))
 	require.NoError(runDiff("fixtures/test1-a.yaml", "fixtures/test1-a.json", Any, Any))
 	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a.yaml", YAML, Any))
+	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a-y", Any, Any))
+	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a-j", Any, Any))
+	require.NoError(runDiff("fixtures/test1-a.yaml", "fixtures/test1-a-j", Any, Any))
+	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a-y", Any, Any))
 
 	require.Equal(errOsExit1, runDiff("fixtures/test1-a.json", "fixtures/test1-b.json", Any, Any))
 	require.Equal(errOsExit1, runDiff("fixtures/test1-b.json", "fixtures/test1-a.json", Any, Any))
@@ -19,4 +23,10 @@ func TestDiff(t *testing.T) {
 	require.Equal(errOsExit1, runDiff("fixtures/test1-b.yaml", "fixtures/test1-a.yaml", Any, Any))
 	require.Equal(errOsExit1, runDiff("fixtures/test1-a.yaml", "fixtures/test1-b.json", Any, Any))
 	require.Equal(errOsExit1, runDiff("fixtures/test1-b.yaml", "fixtures/test1-a.json", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-a-j", "fixtures/test1-b.json", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-b.json", "fixtures/test1-a-y", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-a-y", "fixtures/test1-b.yaml", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-b.yaml", "fixtures/test1-a-y", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-a-y", "fixtures/test1-b.json", Any, Any))
+	require.Equal(errOsExit1, runDiff("fixtures/test1-b.yaml", "fixtures/test1-a-j", Any, Any))
 }
