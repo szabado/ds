@@ -1,23 +1,50 @@
 package cmd
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
+	"github.com/BurntSushi/toml"
+	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-//go:generate stringer -type=language
-type language int
+//go:generate stringer -type=Language
+type Language int
 
 const (
-	langAny language = iota
-	langJson
-	langYaml
-	langToml
+	Any Language = iota
+	JSON
+	YAML
+	TOML
 )
+
+type parser struct {
+	lang      Language
+	unmarshal func([]byte, interface{}) error
+}
+
+var parsers = []parser{
+	{
+		lang:      JSON,
+		unmarshal: json.Unmarshal,
+	},
+	{
+		lang:      TOML,
+		unmarshal: toml.Unmarshal,
+	},
+	{
+		// Yaml parser is the most permissive and will frequently misinterpret other files.
+		// Call it last
+		lang:      YAML,
+		unmarshal: yaml.Unmarshal,
+	},
+}
+
+var errOsExit1 = errors.New("ds should os.Exit(1)")
 
 var RootCmd = &cobra.Command{
 	Use:   "ds",
@@ -26,12 +53,12 @@ var RootCmd = &cobra.Command{
 		var err error
 		firstFileLang, err = parseLanguageArg(firstFileLangArg)
 		if err != nil {
-			logrus.WithError(err).Fatal("Invalid language specified")
+			logrus.WithError(err).Fatal("Invalid Language specified")
 		}
 
 		secondFileLang, err = parseLanguageArg(secondFileLangArg)
 		if err != nil {
-			logrus.WithError(err).Fatal("Invalid language specified")
+			logrus.WithError(err).Fatal("Invalid Language specified")
 		}
 
 		if verbose {
@@ -44,39 +71,41 @@ var RootCmd = &cobra.Command{
 
 var (
 	firstFileLangArg, secondFileLangArg string
-	firstFileLang, secondFileLang       language
-	verbose                             bool
+	firstFileLang, secondFileLang       Language
+	verbose, quiet                      bool
 )
 
 func init() {
-	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose log output.")
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose log output")
+	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "output nothing."+
+		"an nonzero exit code indicates failure")
 }
 
-func parseLanguageArg(s string) (language, error) {
+func parseLanguageArg(s string) (Language, error) {
 	switch strings.ToLower(s) {
 	case "yaml", "yml":
-		return langYaml, nil
+		return YAML, nil
 	case "json":
-		return langJson, nil
+		return JSON, nil
 	case "toml":
-		return langToml, nil
+		return TOML, nil
 	case "":
-		return langAny, nil
+		return Any, nil
 	default:
-		return langAny, errors.Errorf("unsupported language %s", s)
+		return Any, errors.Errorf("unsupported Language %s", s)
 	}
 }
 
-func getFileExtLang(file string) language {
+func getFileExtLang(file string) Language {
 	switch ext := strings.ToLower(filepath.Ext(file)); ext {
 	case ".yaml", ".yml":
-		return langYaml
+		return YAML
 	case ".json":
-		return langJson
+		return JSON
 	case ".toml":
-		return langToml
+		return TOML
 	default:
 		logrus.WithField("extension", ext).Debug("Unknown file extension")
-		return langAny
+		return Any
 	}
 }
