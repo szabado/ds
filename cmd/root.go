@@ -41,13 +41,13 @@ var parsers = []*parser{
 		lang:       JSON,
 		unmarshal:  json.Unmarshal,
 		marshal:    jsonMarshalPretty,
-		cleanInput: stringMapKeyCleaner,
+		cleanInput: stringKeyedMapCleaner,
 	},
 	{
 		lang:       TOML,
 		unmarshal:  toml.Unmarshal,
 		marshal:    toml.Marshal,
-		cleanInput: stringMapKeyCleaner,
+		cleanInput: stringKeyedMapCleaner,
 	},
 	{
 		// Yaml parser is the most permissive and will frequently misinterpret other files.
