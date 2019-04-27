@@ -21,8 +21,8 @@ const supportedLangsArg = "Valid types: [yaml|json|toml]"
 const (
 	Any Language = iota
 	JSON
-	YAML
 	TOML
+	YAML
 )
 
 type parser struct {
@@ -92,17 +92,28 @@ values are:
 		} else {
 			logrus.SetLevel(logrus.FatalLevel)
 		}
+
+		if compact {
+			for _, parser := range parsers {
+				if parser.lang == JSON {
+					parser.marshal = json.Marshal
+				}
+			}
+		}
 	},
 }
 
 var (
-	verbose, quiet bool
+	verbose, quiet, compact bool
 )
 
 func init() {
-	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose log output")
-	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "output nothing."+
-		"an nonzero exit code indicates failure")
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false,
+		"verbose log output")
+	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false,
+		"output nothing. A non-zero exit code indicates failure")
+	RootCmd.Flags().BoolVarP(&compact, "compact", "c", false,
+		"compress/minify output where possible")
 }
 
 func parseLanguageArg(s string) (Language, error) {

@@ -7,7 +7,7 @@ Semantic Diffs of Data Serialization languages.
 Diffs between:
 - xml?
 - protobuf??? Probably not, but maybe
-- ini. More complicated than other languages.
+- ini. The libraries to deal with it are more complex than other languages, so it's been pushed off.
 
 Other things:
 - Pretty printing in the relevant language

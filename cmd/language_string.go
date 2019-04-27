@@ -10,11 +10,11 @@ func _() {
 	var x [1]struct{}
 	_ = x[Any-0]
 	_ = x[JSON-1]
-	_ = x[YAML-2]
-	_ = x[TOML-3]
+	_ = x[TOML-2]
+	_ = x[YAML-3]
 }
 
-const _Language_name = "AnyJSONYAMLTOML"
+const _Language_name = "AnyJSONTOMLYAML"
 
 var _Language_index = [...]uint8{0, 3, 7, 11, 15}
 
