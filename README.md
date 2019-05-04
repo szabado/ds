@@ -15,13 +15,14 @@ Diffs can be printed in:
 
 ## Future Goals
 
-Diffs/parsing of:
-- ini. The libraries to deal with it are more complex than other languages, so it's been pushed off.
-
 Other things:
 Printing diffs in:
 - A syntax agnostic format
 - The relevant language
+
+## Non-Goals
+
+- ini support
 
 ## XML Diffs
 
