@@ -12,13 +12,16 @@ Parsing and diffs between/of:
 
 Diffs can be printed in:
 - go-syntax format
+- A buggy syntax agnostic format. It can result in unexpected type coercion.
 
 ## Future Goals
 
-Other things:
 Printing diffs in:
-- A syntax agnostic format
+- A stable syntax agnostic format
 - The relevant language
+
+Other goals:
+- Collapsing unchanged stanzas to make the output easier to understand
 
 ## Non-Goals
 

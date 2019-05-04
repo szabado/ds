@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/kylelemons/godebug/pretty"
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ import (
 var (
 	firstFileLangArg, secondFileLangArg string
 	firstFileLang, secondFileLang       Language
+	prettyDiff bool
 )
 
 func init() {
@@ -25,6 +27,8 @@ func init() {
 
 	diffCmd.PersistentFlags().StringVarP(&firstFileLangArg, "file1type", "1", "", "first file type.  "+supportedLangsArg)
 	diffCmd.PersistentFlags().StringVarP(&secondFileLangArg, "file2type", "2", "", "second file type. "+supportedLangsArg)
+	diffCmd.PersistentFlags().BoolVarP(&prettyDiff, "pretty", "p", false, "pretty printed diff. " +
+		"May result in unexpected type coercion.")
 }
 
 var diffCmd = &cobra.Command{
@@ -61,6 +65,15 @@ func runDiff(file1, file2 string, lang1, lang2 Language, output io.Writer) error
 
 	logrus.Debug("Calculating diff")
 	diff := cmp.Diff(contents1, contents2)
+	if prettyDiff {
+		pDiff := pretty.Compare(contents1, contents2)
+		if pDiff == "" && diff != "" {
+			logrus.Debug("No pretty diff found but a diff was present")
+		} else {
+			diff = pDiff
+		}
+	}
+
 	if diff == "" {
 		logrus.Debug("Files are identical")
 		return nil
