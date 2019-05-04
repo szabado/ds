@@ -1,30 +1,56 @@
-# Data Serialization Diff (dsdiff) 
+# Data Serialization Toolbox (ds)
 
 Semantic Diffs of Data Serialization languages.
 
-## Future Goals
-
-Diffs between:
-- xml?
-- protobuf??? Probably not, but maybe
-- ini. The libraries to deal with it are more complex than other languages, so it's been pushed off.
-
-Other things:
-- Pretty printing in the relevant language
-
 ## Current Capabilities
 
-Diffs between:
+Parsing and diffs between/of:
 - yaml
 - json
 - toml
+- xml. Diffs with XML are inherently a little lossy, see the **XML Diffs** section.
 
-Printing the output of a syntax-agnostic diff
+Diffs can be printed in:
+- go-syntax format
+
+## Future Goals
+
+Diffs/parsing of:
+- ini. The libraries to deal with it are more complex than other languages, so it's been pushed off.
+
+Other things:
+Printing diffs in:
+- A syntax agnostic format
+- The relevant language
+
+## XML Diffs
+
+XML diffs are a little lossy. The order of elements in an XML document is significant, but go maps are used
+to store the elements. `ds diff` will treat xml like the following two as identical, despite them being
+technically different:
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<note>
+    <test2>value2</test2>
+    <test>value</test>
+</note>
+```
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<note>
+    <test>value</test>
+    <test2>value2</test2>
+</note>
+```
+
+If you *need* order-sensitive diffs of xml files, look into [xmldiff](https://pypi.org/project/xmldiff).
 
 ## Inspiration
 
-This is partially a reimplementation, partially a 
+This is partially a reimplementation, partially a generalization of:
 - The phenomenal [json-diff](https://github.com/andreyvit/json-diff) by Andrey Tarantsov.
   - This one inspired a lot of the interface and features.
 - The equally awesome [yamldiff](https://github.com/sahilm/yamldiff) by Sahil Muthoo.
-  - This one showed me out some awesome libraries that handle most of the logic in `dsdiff`.
+  - This one showed me out some awesome libraries that helped write `dsdiff`.

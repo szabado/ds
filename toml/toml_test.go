@@ -3,7 +3,7 @@ package toml
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	r "github.com/stretchr/testify/require"
 )
 
 const fixture = `title = "TOML Example"
@@ -13,7 +13,7 @@ const fixture = `title = "TOML Example"
 `
 
 func TestRoundTrip(t *testing.T) {
-	require := require.New(t)
+	require := r.New(t)
 
 	var contents interface{}
 

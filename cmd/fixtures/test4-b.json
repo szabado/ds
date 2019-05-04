@@ -1,0 +1,8 @@
+{
+  "note": {
+    "test": {
+      "#text": "value",
+      "-annot": "test"
+    }
+  }
+}

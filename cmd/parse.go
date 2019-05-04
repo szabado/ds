@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -38,11 +40,11 @@ var parseCmd = &cobra.Command{
 
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		handleErr(runParse(args[0], inputFileLang, outputFileLang))
+		handleErr(runParse(args[0], inputFileLang, outputFileLang, os.Stdout))
 	},
 }
 
-func runParse(file string, inputLang, outputLang Language) error {
+func runParse(file string, inputLang, outputLang Language, output io.Writer) error {
 	contents, lang, err := parse(inputLang, file)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse file")
@@ -63,15 +65,17 @@ func runParse(file string, inputLang, outputLang Language) error {
 			continue
 		}
 
-		result, err = parser.marshal(parser.cleanInput(contents))
+		result, err = parser.marshal(contents)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal")
 		}
 	}
 
-	if !quiet {
-		fmt.Printf("%s\n", result)
+	_, err = fmt.Fprintf(output, "%s", result)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	_, err = fmt.Fprint(output, "\n")
+	return err
 }

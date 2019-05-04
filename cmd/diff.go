@@ -3,10 +3,12 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 
-	"github.com/kylelemons/godebug/pretty"
+	"github.com/google/go-cmp/cmp"
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -42,11 +44,11 @@ var diffCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		handleErr(runDiff(args[0], args[1], firstFileLang, secondFileLang))
+		handleErr(runDiff(args[0], args[1], firstFileLang, secondFileLang, os.Stdout))
 	},
 }
 
-func runDiff(file1, file2 string, lang1, lang2 Language) error {
+func runDiff(file1, file2 string, lang1, lang2 Language, output io.Writer) error {
 	contents1, _, err := parse(lang1, file1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %v", file1)
@@ -58,15 +60,15 @@ func runDiff(file1, file2 string, lang1, lang2 Language) error {
 	}
 
 	logrus.Debug("Calculating diff")
-	output := pretty.Compare(contents1, contents2)
-	if output == "" {
+	diff := cmp.Diff(contents1, contents2)
+	if diff == "" {
 		logrus.Debug("Files are identical")
 		return nil
 	}
 
 	if !quiet {
 		logrus.Debug("Pretty printing output")
-		prettyPrint(output)
+		prettyPrint(diff, output)
 	} else {
 		logrus.Debug("Quiet output")
 	}
@@ -74,17 +76,17 @@ func runDiff(file1, file2 string, lang1, lang2 Language) error {
 	return errOsExit1
 }
 
-func prettyPrint(s string) {
+func prettyPrint(s string, output io.Writer) {
 	sc := bufio.NewScanner(strings.NewReader(s))
 	for sc.Scan() {
 		if line := sc.Text(); len(line) == 0 {
-			fmt.Println(line)
+			fmt.Fprintln(output, line)
 		} else if line[0] == '+' {
-			fmt.Println(aurora.Green(line))
+			fmt.Fprintln(output, aurora.Green(line))
 		} else if line[0] == '-' {
-			fmt.Println(aurora.Red(line))
+			fmt.Fprintln(output, aurora.Red(line))
 		} else {
-			fmt.Println(line)
+			fmt.Fprintln(output, line)
 		}
 	}
 }
@@ -109,7 +111,8 @@ func parse(lang Language, path string) (interface{}, Language, error) {
 			continue
 		}
 
-		return value, parser.lang, parser.unmarshal(contents, &value)
+		err = parser.unmarshal(contents, &value)
+		return parser.cleanInput(value), parser.lang, err
 	}
 
 	logrus.Debug("Unknown file extension and language wasn't specified")
@@ -119,7 +122,7 @@ func parse(lang Language, path string) (interface{}, Language, error) {
 		err = parser.unmarshal(contents, &value)
 		if err == nil {
 			logrus.Debugf("%s parser succeeded", parser.lang)
-			return value, parser.lang, nil
+			return parser.cleanInput(value), parser.lang, nil
 		}
 	}
 

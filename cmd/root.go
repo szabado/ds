@@ -12,16 +12,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/szabado/ds/toml"
+	"github.com/szabado/ds/xml"
 )
 
 //go:generate stringer -type=Language
 type Language int
 
-const supportedLangsArg = "Valid types: [yaml|json|toml]"
+const supportedLangsArg = "Valid types: [yaml|json|toml|xml]"
 const (
 	Any Language = iota
 	JSON
 	TOML
+	XML
 	YAML
 )
 
@@ -50,12 +52,18 @@ var parsers = []*parser{
 		cleanInput: stringKeyedMapCleaner,
 	},
 	{
+		lang:       XML,
+		unmarshal:  xml.Unmarshal,
+		marshal:    xml.Marshal,
+		cleanInput: stringKeyedMapCleaner,
+	},
+	{
 		// Yaml parser is the most permissive and will frequently misinterpret other files.
 		// Call it last
 		lang:       YAML,
 		unmarshal:  yaml.Unmarshal,
 		marshal:    yaml.Marshal,
-		cleanInput: noopCleaner,
+		cleanInput: stringKeyedMapCleaner,
 	},
 }
 
@@ -71,11 +79,13 @@ is. It uses a couple methods to do this. First, the file extension:
   - .yaml/.yml: YAML
   - .toml: TOML
   - .json: JSON
+  - .xml:  XML
 
 If the file extension is unknown, it will try a series of parsers until one
 works (in this order):
   1. JSON
   2. TOML
+  3. XML
   3. YAML
 
 
@@ -85,6 +95,7 @@ values are:
   - yaml/yml
   - json
   - toml
+  - xml
 `,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if verbose {
@@ -124,6 +135,8 @@ func parseLanguageArg(s string) (Language, error) {
 		return JSON, nil
 	case "toml":
 		return TOML, nil
+	case "xml":
+		return XML, nil
 	case "":
 		return Any, nil
 	default:

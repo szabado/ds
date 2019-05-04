@@ -1,25 +1,102 @@
 package cmd
 
 import (
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
+	"regexp"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/sirupsen/logrus"
+	r "github.com/stretchr/testify/require"
 )
 
 func TestDiff(t *testing.T) {
-	require := require.New(t)
+	var writer io.Writer = &NoopWriter{}
+	logrus.SetLevel(logrus.FatalLevel)
+	writer = os.Stdout
 
-	require.NoError(runDiff("fixtures/test1-a.json", "fixtures/test1-a-y", Any, Any))
-	require.NoError(runDiff("fixtures/test1-a-y", "fixtures/test1-a.json", Any, Any))
-	require.Equal(errOsExit1, runDiff("fixtures/test1-a.json", "fixtures/test1-b-j", Any, Any))
-	require.Equal(errOsExit1, runDiff("fixtures/test1-b-j", "fixtures/test1-a.json", Any, Any))
-	require.Equal(errOsExit1, runDiff("fixtures/test1-a-y", "fixtures/test1-b-j", Any, Any))
-	require.Equal(errOsExit1, runDiff("fixtures/test1-b-j", "fixtures/test1-a-y", Any, Any))
+	RunSuite(t, func(file1, file2 string) error {
+		return runDiff(file1, file2, Any, Any, writer)
+	})
+}
 
-	require.NoError(runDiff("fixtures/test2-a.json", "fixtures/test2-a.toml", JSON, TOML))
-	require.NoError(runDiff("fixtures/test2-a.toml", "fixtures/test2-a.yaml", TOML, YAML))
+const (
+	fixturesDir = `fixtures`
+)
 
-	require.NoError(runDiff("fixtures/test3-b.toml", "fixtures/test3-b.json", Any, JSON))
-	require.Error(errOsExit1, runDiff("fixtures/test3-a.yaml", "fixtures/test3-b.json", Any, JSON))
-	require.Error(errOsExit1, runDiff("fixtures/test3-a.yaml", "fixtures/test3-b.toml", Any, Any))
+var (
+	testFilesRegexes = regexp.MustCompile(`^test(\d+)-(\w+)[-.]\w+$`)
+)
+
+func RunSuite(t *testing.T, f func(file1, file2 string) error) {
+	require := r.New(t)
+
+	files, err := ioutil.ReadDir(fixturesDir)
+	require.NoError(err)
+
+	testFiles := make(map[string]map[string][]string)
+	for _, file := range files {
+		submatches := testFilesRegexes.FindStringSubmatch(file.Name())
+		if len(submatches) != 3 {
+			t.Logf("Skipping test: %s", file.Name())
+			continue
+		}
+
+		testNum := submatches[1]
+		inputNum := submatches[2]
+
+		if _, ok := testFiles[testNum]; !ok {
+			testFiles[testNum] = make(map[string][]string)
+		}
+
+		testFiles[testNum][inputNum] = append(testFiles[testNum][inputNum], file.Name())
+	}
+
+	for _, suite := range testFiles {
+		for key, tests := range suite {
+			t.Log("Asserting files are the same")
+			for i := 0; i < len(tests); i++ {
+				for j := i; j < len(tests); j++ {
+					testI := tests[i]
+					testJ := tests[j]
+
+					file1 := path.Join(fixturesDir, testI)
+					file2 := path.Join(fixturesDir, testJ)
+
+					t.Run(fmt.Sprintf("%s__%s", testI, testJ), func(t *testing.T) {
+						r.NoError(t, f(file1, file2))
+					})
+
+					t.Run(fmt.Sprintf("%s__%s", testJ, testI), func(t *testing.T) {
+						r.NoError(t, f(file2, file1))
+					})
+				}
+			}
+
+			t.Log("Asserting files are different")
+			for _, test := range tests {
+				for altKey, altTests := range suite {
+					if altKey == key {
+						continue
+					}
+
+					for _, altTest := range altTests {
+						file1 := path.Join(fixturesDir, test)
+						file2 := path.Join(fixturesDir, altTest)
+
+						t.Run(fmt.Sprintf("%s__%s", test, altTest), func(t *testing.T) {
+							r.Error(t, f(file1, file2))
+						})
+
+						t.Run(fmt.Sprintf("%s__%s", altTest, test), func(t *testing.T) {
+							r.Error(t, f(file2, file1))
+						})
+					}
+				}
+			}
+		}
+	}
 }

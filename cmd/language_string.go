@@ -11,12 +11,13 @@ func _() {
 	_ = x[Any-0]
 	_ = x[JSON-1]
 	_ = x[TOML-2]
-	_ = x[YAML-3]
+	_ = x[XML-3]
+	_ = x[YAML-4]
 }
 
-const _Language_name = "AnyJSONTOMLYAML"
+const _Language_name = "AnyJSONTOMLXMLYAML"
 
-var _Language_index = [...]uint8{0, 3, 7, 11, 15}
+var _Language_index = [...]uint8{0, 3, 7, 11, 14, 18}
 
 func (i Language) String() string {
 	if i < 0 || i >= Language(len(_Language_index)-1) {
